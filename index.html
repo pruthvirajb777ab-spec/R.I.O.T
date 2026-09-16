@@ -1,491 +1,818 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Snake & Ladder</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Animation Making 3D</title>
 
-<style>
-* {
-    box-sizing: border-box;
-}
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+    }
 
-body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: linear-gradient(135deg, #141e30, #243b55);
-    color: white;
-    text-align: center;
-}
+    body {
+      background: #101010;
+      color: white;
+      overflow: hidden;
+    }
 
-h1 {
-    margin: 15px 0 5px;
-}
+    header {
+      height: 60px;
+      background: #181818;
+      display: flex;
+      align-items: center;
+      padding: 0 15px;
+      border-bottom: 1px solid #333;
+    }
 
-#turn {
-    font-size: 20px;
-    margin: 10px;
-    font-weight: bold;
-}
+    header h1 {
+      font-size: 20px;
+    }
 
-.game {
-    width: 95%;
-    max-width: 650px;
-    margin: auto;
-}
+    #app {
+      height: calc(100vh - 60px);
+      display: flex;
+    }
 
-/* BOARD */
+    /* Left panel */
+    #sidebar {
+      width: 300px;
+      background: #181818;
+      padding: 15px;
+      overflow-y: auto;
+      border-right: 1px solid #333;
+    }
 
-#board {
-    width: 100%;
-    aspect-ratio: 1 / 1;
-    display: grid;
-    grid-template-columns: repeat(10, 1fr);
-    border: 4px solid white;
-    background: white;
-}
-
-.cell {
-    position: relative;
-    border: 1px solid #777;
-    color: #111;
-    font-size: clamp(9px, 2vw, 15px);
-    font-weight: bold;
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-start;
-    padding: 3px;
-}
-
-.cell:nth-child(odd) {
-    background: #f5d76e;
-}
-
-.cell:nth-child(even) {
-    background: #f8a55b;
-}
-
-.snake {
-    background: #ff7675 !important;
-}
-
-.ladder {
-    background: #55efc4 !important;
-}
-
-.player {
-    position: absolute;
-    width: 30%;
-    aspect-ratio: 1;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 12px;
-    font-weight: bold;
-    bottom: 5px;
-    right: 5px;
-    z-index: 5;
-}
-
-.p1 {
-    background: #e74c3c;
-}
-
-.p2 {
-    background: #3498db;
-    right: auto;
-    left: 5px;
-}
-
-/* CONTROLS */
-
-.controls {
-    margin-top: 15px;
-}
-
-button {
-    border: none;
-    padding: 14px 25px;
-    border-radius: 10px;
-    font-size: 18px;
-    font-weight: bold;
-    cursor: pointer;
-    margin: 5px;
-}
-
-#roll {
-    background: #2ecc71;
-    color: white;
-}
-
-#roll:disabled {
-    background: #777;
-}
-
-#dice {
-    font-size: 55px;
-    margin: 5px;
-}
-
-.info {
-    display: flex;
-    justify-content: center;
-    gap: 25px;
-    margin-top: 10px;
-}
-
-.card {
-    background: rgba(255,255,255,0.12);
-    padding: 10px 20px;
-    border-radius: 10px;
-}
-
-.reset {
-    background: #e67e22;
-    color: white;
-}
-
-@media(max-width:500px) {
-    .player {
-        font-size: 8px;
+    textarea {
+      width: 100%;
+      height: 120px;
+      background: #252525;
+      color: white;
+      border: 1px solid #444;
+      border-radius: 10px;
+      padding: 12px;
+      resize: none;
+      outline: none;
+      margin-bottom: 10px;
     }
 
     button {
-        padding: 12px 18px;
-        font-size: 16px;
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 10px;
+      border: none;
+      border-radius: 9px;
+      background: #ffffff;
+      color: #111;
+      font-weight: bold;
+      cursor: pointer;
     }
-}
-</style>
+
+    button:hover {
+      background: #dddddd;
+    }
+
+    .secondary {
+      background: #292929;
+      color: white;
+      border: 1px solid #444;
+    }
+
+    h3 {
+      margin: 18px 0 10px;
+      font-size: 14px;
+      color: #aaa;
+    }
+
+    #objects {
+      background: #222;
+      border-radius: 10px;
+      padding: 8px;
+      min-height: 80px;
+    }
+
+    .object {
+      padding: 9px;
+      background: #2d2d2d;
+      margin-bottom: 5px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    /* 3D area */
+    #scene {
+      flex: 1;
+      position: relative;
+    }
+
+    #canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Timeline */
+    #timeline {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 100px;
+      background: rgba(20,20,20,0.95);
+      border-top: 1px solid #444;
+      padding: 12px;
+    }
+
+    #timeline input {
+      width: 100%;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .controls button {
+      width: auto;
+      flex: 1;
+    }
+
+    #status {
+      font-size: 12px;
+      color: #aaa;
+      margin-top: 5px;
+    }
+
+    @media(max-width: 700px) {
+      #sidebar {
+        width: 220px;
+      }
+    }
+  </style>
 </head>
 
 <body>
 
-<h1>🐍 Snake & Ladder 🪜</h1>
+<header>
+  <h1>🎬 Animation Making 3D</h1>
+</header>
 
-<div id="turn">Player 1's Turn</div>
+<div id="app">
 
-<div class="game">
+  <!-- LEFT PANEL -->
+  <aside id="sidebar">
 
-    <div id="board"></div>
+    <h3>AI Animation Prompt</h3>
 
-    <div id="dice">🎲</div>
+    <textarea id="prompt"
+      placeholder="Example: Create a red car driving on a road"></textarea>
+
+    <button onclick="generateAnimation()">
+      ✨ Generate Animation
+    </button>
+
+    <button class="secondary" onclick="addCube()">
+      🧊 Add Cube
+    </button>
+
+    <button class="secondary" onclick="addSphere()">
+      ⚪ Add Sphere
+    </button>
+
+    <button class="secondary" onclick="addCar()">
+      🚗 Add Car
+    </button>
+
+    <h3>Scene Objects</h3>
+
+    <div id="objects"></div>
+
+    <h3>Animation</h3>
 
     <div class="controls">
-        <button id="roll" onclick="rollDice()">ROLL DICE</button>
-        <button class="reset" onclick="resetGame()">RESTART</button>
+      <button onclick="playAnimation()">▶ Play</button>
+      <button onclick="stopAnimation()">■ Stop</button>
     </div>
 
-    <div class="info">
-        <div class="card">
-            🔴 Player 1
-            <br>
-            <span id="p1pos">0</span>
-        </div>
+    <button class="secondary" onclick="clearScene()">
+      🗑 Clear Scene
+    </button>
 
-        <div class="card">
-            🔵 Player 2
-            <br>
-            <span id="p2pos">0</span>
-        </div>
+    <button class="secondary" onclick="saveScene()">
+      💾 Save Scene
+    </button>
+
+    <button class="secondary" onclick="loadScene()">
+      📂 Load Scene
+    </button>
+
+    <p id="status">Ready</p>
+
+  </aside>
+
+  <!-- 3D VIEW -->
+  <main id="scene">
+    <canvas id="canvas"></canvas>
+
+    <div id="timeline">
+      <input
+        id="timeSlider"
+        type="range"
+        min="0"
+        max="100"
+        value="0"
+        oninput="changeTimeline(this.value)"
+      >
+
+      <div class="controls">
+        <button onclick="previousFrame()">◀</button>
+        <button onclick="playAnimation()">▶</button>
+        <button onclick="nextFrame()">▶</button>
+      </div>
     </div>
+  </main>
 
 </div>
 
+
+<!-- Three.js -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+
 <script>
 
-const board = document.getElementById("board");
+  let scene;
+  let camera;
+  let renderer;
+  let objects = [];
+  let animationRunning = false;
+  let animationTime = 0;
 
-let players = {
-    1: 0,
-    2: 0
-};
+  // -------------------------
+  // CREATE 3D SCENE
+  // -------------------------
 
-let currentPlayer = 1;
-let gameOver = false;
+  function init() {
 
-/* SNAKES */
+    scene = new THREE.Scene();
 
-const snakes = {
-    99: 54,
-    95: 72,
-    92: 51,
-    64: 36,
-    62: 19,
-    56: 27,
-    48: 26,
-    16: 6
-};
+    scene.background = new THREE.Color(0x111111);
 
-/* LADDERS */
+    camera = new THREE.PerspectiveCamera(
+      60,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      1000
+    );
 
-const ladders = {
-    2: 38,
-    7: 14,
-    8: 31,
-    15: 26,
-    21: 42,
-    28: 84,
-    36: 44,
-    51: 67,
-    71: 91,
-    78: 98
-};
+    camera.position.set(7, 5, 9);
+    camera.lookAt(0, 0, 0);
 
-/* CREATE BOARD */
+    renderer = new THREE.WebGLRenderer({
+      canvas: document.getElementById("canvas"),
+      antialias: true
+    });
 
-function createBoard() {
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(
+      document.getElementById("scene").clientWidth,
+      document.getElementById("scene").clientHeight
+    );
 
-    board.innerHTML = "";
+    // Lighting
 
-    for (let row = 9; row >= 0; row--) {
+    const ambient = new THREE.AmbientLight(
+      0xffffff,
+      0.6
+    );
 
-        let numbers = [];
+    scene.add(ambient);
 
-        for (let col = 1; col <= 10; col++) {
-            numbers.push(row * 10 + col);
+    const light = new THREE.DirectionalLight(
+      0xffffff,
+      1
+    );
+
+    light.position.set(5, 10, 5);
+    scene.add(light);
+
+    // Ground
+
+    const groundGeometry =
+      new THREE.PlaneGeometry(50, 50);
+
+    const groundMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0x333333
+      });
+
+    const ground =
+      new THREE.Mesh(
+        groundGeometry,
+        groundMaterial
+      );
+
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -1;
+
+    scene.add(ground);
+
+    animate();
+  }
+
+
+  // -------------------------
+  // RENDER LOOP
+  // -------------------------
+
+  function animate() {
+
+    requestAnimationFrame(animate);
+
+    if (animationRunning) {
+
+      animationTime += 0.02;
+
+      objects.forEach((obj, index) => {
+
+        if (obj.userData.animated) {
+
+          obj.position.x =
+            Math.sin(animationTime + index) * 3;
+
+          obj.rotation.y += 0.02;
+
         }
 
-        // Alternate direction
-        if (row % 2 === 1) {
-            numbers.reverse();
-        }
-
-        numbers.forEach(num => {
-
-            const cell = document.createElement("div");
-
-            cell.classList.add("cell");
-            cell.id = "cell-" + num;
-
-            cell.innerHTML = num;
-
-            if (snakes[num]) {
-                cell.classList.add("snake");
-                cell.innerHTML += " 🐍";
-            }
-
-            if (ladders[num]) {
-                cell.classList.add("ladder");
-                cell.innerHTML += " 🪜";
-            }
-
-            board.appendChild(cell);
-
-        });
+      });
     }
 
-    updatePlayers();
-}
+    renderer.render(scene, camera);
+  }
 
-/* UPDATE PLAYER POSITIONS */
 
-function updatePlayers() {
+  // -------------------------
+  // ADD CUBE
+  // -------------------------
 
-    // Remove old players
-    document.querySelectorAll(".player").forEach(p => p.remove());
+  function addCube() {
 
-    for (let p = 1; p <= 2; p++) {
+    const geometry =
+      new THREE.BoxGeometry(1,1,1);
 
-        if (players[p] === 0) continue;
+    const material =
+      new THREE.MeshStandardMaterial({
+        color: Math.random() * 0xffffff
+      });
 
-        const cell = document.getElementById(
-            "cell-" + players[p]
+    const cube =
+      new THREE.Mesh(
+        geometry,
+        material
+      );
+
+    cube.position.y = 0;
+
+    cube.userData.type = "Cube";
+    cube.userData.animated = true;
+
+    scene.add(cube);
+
+    objects.push(cube);
+
+    updateObjectList();
+
+    status("Cube added");
+  }
+
+
+  // -------------------------
+  // ADD SPHERE
+  // -------------------------
+
+  function addSphere() {
+
+    const geometry =
+      new THREE.SphereGeometry(0.7,32,32);
+
+    const material =
+      new THREE.MeshStandardMaterial({
+        color: Math.random() * 0xffffff
+      });
+
+    const sphere =
+      new THREE.Mesh(
+        geometry,
+        material
+      );
+
+    sphere.position.y = 0;
+
+    sphere.userData.type = "Sphere";
+    sphere.userData.animated = true;
+
+    scene.add(sphere);
+
+    objects.push(sphere);
+
+    updateObjectList();
+
+    status("Sphere added");
+  }
+
+
+  // -------------------------
+  // ADD SIMPLE CAR
+  // -------------------------
+
+  function addCar() {
+
+    const car = new THREE.Group();
+
+    // Body
+
+    const bodyGeometry =
+      new THREE.BoxGeometry(3,1,1.4);
+
+    const bodyMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0xff0000
+      });
+
+    const body =
+      new THREE.Mesh(
+        bodyGeometry,
+        bodyMaterial
+      );
+
+    body.position.y = 0.5;
+
+    car.add(body);
+
+
+    // Roof
+
+    const roofGeometry =
+      new THREE.BoxGeometry(1.5,0.7,1.2);
+
+    const roof =
+      new THREE.Mesh(
+        roofGeometry,
+        bodyMaterial
+      );
+
+    roof.position.y = 1.2;
+
+    car.add(roof);
+
+
+    // Wheels
+
+    for(let x of [-1.1,1.1]) {
+
+      for(let z of [-0.75,0.75]) {
+
+        const wheelGeometry =
+          new THREE.CylinderGeometry(
+            0.35,
+            0.35,
+            0.25,
+            32
+          );
+
+        const wheelMaterial =
+          new THREE.MeshStandardMaterial({
+            color: 0x111111
+          });
+
+        const wheel =
+          new THREE.Mesh(
+            wheelGeometry,
+            wheelMaterial
+          );
+
+        wheel.rotation.x =
+          Math.PI / 2;
+
+        wheel.position.set(
+          x,
+          0.1,
+          z
         );
 
-        const token = document.createElement("div");
-
-        token.classList.add("player");
-
-        if (p === 1) {
-            token.classList.add("p1");
-            token.innerText = "P1";
-        } else {
-            token.classList.add("p2");
-            token.innerText = "P2";
-        }
-
-        cell.appendChild(token);
+        car.add(wheel);
+      }
     }
 
-    document.getElementById("p1pos").innerText = players[1];
-    document.getElementById("p2pos").innerText = players[2];
-}
+    car.position.y = -0.5;
 
-/* DICE */
+    car.userData.type = "Car";
+    car.userData.animated = true;
 
-function rollDice() {
+    scene.add(car);
 
-    if (gameOver) return;
+    objects.push(car);
 
-    const rollButton = document.getElementById("roll");
+    updateObjectList();
 
-    rollButton.disabled = true;
+    status("Car added");
+  }
 
-    let dice = Math.floor(Math.random() * 6) + 1;
 
-    const diceFaces = [
-        "",
-        "⚀",
-        "⚁",
-        "⚂",
-        "⚃",
-        "⚄",
-        "⚅"
-    ];
+  // -------------------------
+  // AI PROMPT SYSTEM
+  // -------------------------
 
-    document.getElementById("dice").innerText =
-        diceFaces[dice];
+  function generateAnimation() {
 
-    let oldPosition = players[currentPlayer];
+    const prompt =
+      document.getElementById("prompt").value
+      .toLowerCase();
 
-    let newPosition = oldPosition + dice;
+    if(!prompt.trim()) {
 
-    // Cannot go beyond 100
-    if (newPosition > 100) {
+      status("Please enter a prompt");
 
-        alert(
-            "You need exactly " +
-            (100 - oldPosition) +
-            " to reach 100!"
-        );
-
-        switchTurn(dice);
-        return;
+      return;
     }
 
-    players[currentPlayer] = newPosition;
+    status("Creating 3D animation...");
 
-    updatePlayers();
+    /*
+      BASIC PROMPT UNDERSTANDING
 
-    // Snake
-    if (snakes[newPosition]) {
+      This prototype detects keywords.
 
-        setTimeout(() => {
+      Example:
+      "red car driving"
+      "create a sphere"
+      "cube spinning"
+    */
 
-            alert(
-                "🐍 Snake! " +
-                newPosition +
-                " → " +
-                snakes[newPosition]
-            );
+    if(prompt.includes("car")) {
 
-            players[currentPlayer] =
-                snakes[newPosition];
+      addCar();
 
-            updatePlayers();
-
-            checkWinner(dice);
-
-        }, 400);
-
-        return;
+      objects[
+        objects.length - 1
+      ].userData.animated = true;
     }
 
-    // Ladder
-    if (ladders[newPosition]) {
+    else if(prompt.includes("sphere") ||
+            prompt.includes("ball")) {
 
-        setTimeout(() => {
-
-            alert(
-                "🪜 Ladder! " +
-                newPosition +
-                " → " +
-                ladders[newPosition]
-            );
-
-            players[currentPlayer] =
-                ladders[newPosition];
-
-            updatePlayers();
-
-            checkWinner(dice);
-
-        }, 400);
-
-        return;
+      addSphere();
     }
 
-    checkWinner(dice);
-}
+    else if(prompt.includes("cube") ||
+            prompt.includes("box")) {
 
-/* CHECK WINNER */
-
-function checkWinner(dice) {
-
-    if (players[currentPlayer] === 100) {
-
-        gameOver = true;
-
-        document.getElementById("turn").innerText =
-            "🏆 Player " +
-            currentPlayer +
-            " WINS! 🎉";
-
-        document.getElementById("roll").disabled = true;
-
-        alert(
-            "🎉 Congratulations Player " +
-            currentPlayer +
-            "! You won!"
-        );
-
-        return;
+      addCube();
     }
 
-    switchTurn(dice);
-}
+    else {
 
-/* CHANGE TURN */
-
-function switchTurn(dice) {
-
-    // Rolling 6 gives another turn
-    if (dice === 6) {
-
-        document.getElementById("turn").innerText =
-            "🔥 Player " +
-            currentPlayer +
-            " gets another turn!";
-
-        document.getElementById("roll").disabled = false;
-
-        return;
+      addCube();
     }
 
-    currentPlayer =
-        currentPlayer === 1 ? 2 : 1;
+    status(
+      "Animation created from your prompt"
+    );
+  }
 
-    document.getElementById("turn").innerText =
-        "Player " +
-        currentPlayer +
-        "'s Turn";
 
-    document.getElementById("roll").disabled = false;
-}
+  // -------------------------
+  // PLAY
+  // -------------------------
 
-/* RESET */
+  function playAnimation() {
 
-function resetGame() {
+    animationRunning = true;
 
-    players[1] = 0;
-    players[2] = 0;
+    status("Animation playing");
+  }
 
-    currentPlayer = 1;
-    gameOver = false;
 
-    document.getElementById("dice").innerText = "🎲";
+  // -------------------------
+  // STOP
+  // -------------------------
 
-    document.getElementById("turn").innerText =
-        "Player 1's Turn";
+  function stopAnimation() {
 
-    document.getElementById("roll").disabled = false;
+    animationRunning = false;
 
-    updatePlayers();
-}
+    status("Animation stopped");
+  }
 
-createBoard();
+
+  // -------------------------
+  // TIMELINE
+  // -------------------------
+
+  function changeTimeline(value) {
+
+    animationTime =
+      Number(value) / 10;
+  }
+
+
+  function previousFrame() {
+
+    animationTime -= 0.1;
+
+    document.getElementById(
+      "timeSlider"
+    ).value =
+      animationTime * 10;
+  }
+
+
+  function nextFrame() {
+
+    animationTime += 0.1;
+
+    document.getElementById(
+      "timeSlider"
+    ).value =
+      animationTime * 10;
+  }
+
+
+  // -------------------------
+  // OBJECT LIST
+  // -------------------------
+
+  function updateObjectList() {
+
+    const list =
+      document.getElementById("objects");
+
+    list.innerHTML = "";
+
+    objects.forEach((obj,index) => {
+
+      const item =
+        document.createElement("div");
+
+      item.className = "object";
+
+      item.innerText =
+        (index + 1) +
+        ". " +
+        obj.userData.type;
+
+      item.onclick = () => {
+
+        obj.position.y += 0.5;
+
+      };
+
+      list.appendChild(item);
+    });
+  }
+
+
+  // -------------------------
+  // CLEAR
+  // -------------------------
+
+  function clearScene() {
+
+    objects.forEach(obj => {
+
+      scene.remove(obj);
+
+    });
+
+    objects = [];
+
+    updateObjectList();
+
+    status("Scene cleared");
+  }
+
+
+  // -------------------------
+  // SAVE
+  // -------------------------
+
+  function saveScene() {
+
+    const data =
+      objects.map(obj => ({
+
+        type: obj.userData.type,
+
+        x: obj.position.x,
+        y: obj.position.y,
+        z: obj.position.z,
+
+        rotationY:
+          obj.rotation.y
+
+      }));
+
+    localStorage.setItem(
+      "animation3D",
+      JSON.stringify(data)
+    );
+
+    status("Scene saved");
+  }
+
+
+  // -------------------------
+  // LOAD
+  // -------------------------
+
+  function loadScene() {
+
+    const saved =
+      localStorage.getItem(
+        "animation3D"
+      );
+
+    if(!saved) {
+
+      status("No saved scene");
+
+      return;
+    }
+
+    clearScene();
+
+    const data =
+      JSON.parse(saved);
+
+    data.forEach(item => {
+
+      let obj;
+
+      if(item.type === "Car")
+        addCar();
+
+      else if(item.type === "Sphere")
+        addSphere();
+
+      else
+        addCube();
+
+      obj =
+        objects[objects.length - 1];
+
+      obj.position.set(
+        item.x,
+        item.y,
+        item.z
+      );
+
+      obj.rotation.y =
+        item.rotationY;
+    });
+
+    status("Scene loaded");
+  }
+
+
+  // -------------------------
+  // STATUS
+  // -------------------------
+
+  function status(text) {
+
+    document.getElementById(
+      "status"
+    ).innerText = text;
+  }
+
+
+  // -------------------------
+  // RESIZE
+  // -------------------------
+
+  window.addEventListener(
+    "resize",
+    () => {
+
+      const container =
+        document.getElementById("scene");
+
+      camera.aspect =
+        container.clientWidth /
+        container.clientHeight;
+
+      camera.updateProjectionMatrix();
+
+      renderer.setSize(
+        container.clientWidth,
+        container.clientHeight
+      );
+    }
+  );
+
+
+  init();
 
 </script>
 
