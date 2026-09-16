@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snake & Ladder</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #141e30, #243b55);
+    color: white;
+    text-align: center;
+}
+
+h1 {
+    margin: 15px 0 5px;
+}
+
+#turn {
+    font-size: 20px;
+    margin: 10px;
+    font-weight: bold;
+}
+
+.game {
+    width: 95%;
+    max-width: 650px;
+    margin: auto;
+}
+
+/* BOARD */
+
+#board {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    border: 4px solid white;
+    background: white;
+}
+
+.cell {
+    position: relative;
+    border: 1px solid #777;
+    color: #111;
+    font-size: clamp(9px, 2vw, 15px);
+    font-weight: bold;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 3px;
+}
+
+.cell:nth-child(odd) {
+    background: #f5d76e;
+}
+
+.cell:nth-child(even) {
+    background: #f8a55b;
+}
+
+.snake {
+    background: #ff7675 !important;
+}
+
+.ladder {
+    background: #55efc4 !important;
+}
+
+.player {
+    position: absolute;
+    width: 30%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    bottom: 5px;
+    right: 5px;
+    z-index: 5;
+}
+
+.p1 {
+    background: #e74c3c;
+}
+
+.p2 {
+    background: #3498db;
+    right: auto;
+    left: 5px;
+}
+
+/* CONTROLS */
+
+.controls {
+    margin-top: 15px;
+}
+
+button {
+    border: none;
+    padding: 14px 25px;
+    border-radius: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    margin: 5px;
+}
+
+#roll {
+    background: #2ecc71;
+    color: white;
+}
+
+#roll:disabled {
+    background: #777;
+}
+
+#dice {
+    font-size: 55px;
+    margin: 5px;
+}
+
+.info {
+    display: flex;
+    justify-content: center;
+    gap: 25px;
+    margin-top: 10px;
+}
+
+.card {
+    background: rgba(255,255,255,0.12);
+    padding: 10px 20px;
+    border-radius: 10px;
+}
+
+.reset {
+    background: #e67e22;
+    color: white;
+}
+
+@media(max-width:500px) {
+    .player {
+        font-size: 8px;
+    }
+
+    button {
+        padding: 12px 18px;
+        font-size: 16px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<h1>🐍 Snake & Ladder 🪜</h1>
+
+<div id="turn">Player 1's Turn</div>
+
+<div class="game">
+
+    <div id="board"></div>
+
+    <div id="dice">🎲</div>
+
+    <div class="controls">
+        <button id="roll" onclick="rollDice()">ROLL DICE</button>
+        <button class="reset" onclick="resetGame()">RESTART</button>
+    </div>
+
+    <div class="info">
+        <div class="card">
+            🔴 Player 1
+            <br>
+            <span id="p1pos">0</span>
+        </div>
+
+        <div class="card">
+            🔵 Player 2
+            <br>
+            <span id="p2pos">0</span>
+        </div>
+    </div>
+
+</div>
+
+<script>
+
+const board = document.getElementById("board");
+
+let players = {
+    1: 0,
+    2: 0
+};
+
+let currentPlayer = 1;
+let gameOver = false;
+
+/* SNAKES */
+
+const snakes = {
+    99: 54,
+    95: 72,
+    92: 51,
+    64: 36,
+    62: 19,
+    56: 27,
+    48: 26,
+    16: 6
+};
+
+/* LADDERS */
+
+const ladders = {
+    2: 38,
+    7: 14,
+    8: 31,
+    15: 26,
+    21: 42,
+    28: 84,
+    36: 44,
+    51: 67,
+    71: 91,
+    78: 98
+};
+
+/* CREATE BOARD */
+
+function createBoard() {
+
+    board.innerHTML = "";
+
+    for (let row = 9; row >= 0; row--) {
+
+        let numbers = [];
+
+        for (let col = 1; col <= 10; col++) {
+            numbers.push(row * 10 + col);
+        }
+
+        // Alternate direction
+        if (row % 2 === 1) {
+            numbers.reverse();
+        }
+
+        numbers.forEach(num => {
+
+            const cell = document.createElement("div");
+
+            cell.classList.add("cell");
+            cell.id = "cell-" + num;
+
+            cell.innerHTML = num;
+
+            if (snakes[num]) {
+                cell.classList.add("snake");
+                cell.innerHTML += " 🐍";
+            }
+
+            if (ladders[num]) {
+                cell.classList.add("ladder");
+                cell.innerHTML += " 🪜";
+            }
+
+            board.appendChild(cell);
+
+        });
+    }
+
+    updatePlayers();
+}
+
+/* UPDATE PLAYER POSITIONS */
+
+function updatePlayers() {
+
+    // Remove old players
+    document.querySelectorAll(".player").forEach(p => p.remove());
+
+    for (let p = 1; p <= 2; p++) {
+
+        if (players[p] === 0) continue;
+
+        const cell = document.getElementById(
+            "cell-" + players[p]
+        );
+
+        const token = document.createElement("div");
+
+        token.classList.add("player");
+
+        if (p === 1) {
+            token.classList.add("p1");
+            token.innerText = "P1";
+        } else {
+            token.classList.add("p2");
+            token.innerText = "P2";
+        }
+
+        cell.appendChild(token);
+    }
+
+    document.getElementById("p1pos").innerText = players[1];
+    document.getElementById("p2pos").innerText = players[2];
+}
+
+/* DICE */
+
+function rollDice() {
+
+    if (gameOver) return;
+
+    const rollButton = document.getElementById("roll");
+
+    rollButton.disabled = true;
+
+    let dice = Math.floor(Math.random() * 6) + 1;
+
+    const diceFaces = [
+        "",
+        "⚀",
+        "⚁",
+        "⚂",
+        "⚃",
+        "⚄",
+        "⚅"
+    ];
+
+    document.getElementById("dice").innerText =
+        diceFaces[dice];
+
+    let oldPosition = players[currentPlayer];
+
+    let newPosition = oldPosition + dice;
+
+    // Cannot go beyond 100
+    if (newPosition > 100) {
+
+        alert(
+            "You need exactly " +
+            (100 - oldPosition) +
+            " to reach 100!"
+        );
+
+        switchTurn(dice);
+        return;
+    }
+
+    players[currentPlayer] = newPosition;
+
+    updatePlayers();
+
+    // Snake
+    if (snakes[newPosition]) {
+
+        setTimeout(() => {
+
+            alert(
+                "🐍 Snake! " +
+                newPosition +
+                " → " +
+                snakes[newPosition]
+            );
+
+            players[currentPlayer] =
+                snakes[newPosition];
+
+            updatePlayers();
+
+            checkWinner(dice);
+
+        }, 400);
+
+        return;
+    }
+
+    // Ladder
+    if (ladders[newPosition]) {
+
+        setTimeout(() => {
+
+            alert(
+                "🪜 Ladder! " +
+                newPosition +
+                " → " +
+                ladders[newPosition]
+            );
+
+            players[currentPlayer] =
+                ladders[newPosition];
+
+            updatePlayers();
+
+            checkWinner(dice);
+
+        }, 400);
+
+        return;
+    }
+
+    checkWinner(dice);
+}
+
+/* CHECK WINNER */
+
+function checkWinner(dice) {
+
+    if (players[currentPlayer] === 100) {
+
+        gameOver = true;
+
+        document.getElementById("turn").innerText =
+            "🏆 Player " +
+            currentPlayer +
+            " WINS! 🎉";
+
+        document.getElementById("roll").disabled = true;
+
+        alert(
+            "🎉 Congratulations Player " +
+            currentPlayer +
+            "! You won!"
+        );
+
+        return;
+    }
+
+    switchTurn(dice);
+}
+
+/* CHANGE TURN */
+
+function switchTurn(dice) {
+
+    // Rolling 6 gives another turn
+    if (dice === 6) {
+
+        document.getElementById("turn").innerText =
+            "🔥 Player " +
+            currentPlayer +
+            " gets another turn!";
+
+        document.getElementById("roll").disabled = false;
+
+        return;
+    }
+
+    currentPlayer =
+        currentPlayer === 1 ? 2 : 1;
+
+    document.getElementById("turn").innerText =
+        "Player " +
+        currentPlayer +
+        "'s Turn";
+
+    document.getElementById("roll").disabled = false;
+}
+
+/* RESET */
+
+function resetGame() {
+
+    players[1] = 0;
+    players[2] = 0;
+
+    currentPlayer = 1;
+    gameOver = false;
+
+    document.getElementById("dice").innerText = "🎲";
+
+    document.getElementById("turn").innerText =
+        "Player 1's Turn";
+
+    document.getElementById("roll").disabled = false;
+
+    updatePlayers();
+}
+
+createBoard();
+
+</script>
+
+</body>
+</html>
