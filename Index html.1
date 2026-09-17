@@ -1,1 +1,1146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>Dragon Rush</title>
 
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    user-select:none;
+    -webkit-user-select:none;
+}
+
+html,body{
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    background:#050812;
+    font-family:Arial,sans-serif;
+}
+
+canvas{
+    display:block;
+    width:100vw;
+    height:100vh;
+    touch-action:none;
+}
+
+#ui{
+    position:fixed;
+    top:15px;
+    left:15px;
+    right:15px;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    pointer-events:none;
+    color:white;
+    z-index:5;
+}
+
+.panel{
+    background:rgba(5,10,25,.72);
+    border:1px solid rgba(255,255,255,.15);
+    backdrop-filter:blur(10px);
+    padding:10px 14px;
+    border-radius:14px;
+    box-shadow:0 5px 25px rgba(0,0,0,.3);
+}
+
+.title{
+    font-size:20px;
+    font-weight:900;
+    letter-spacing:2px;
+}
+
+.stats{
+    margin-top:5px;
+    font-size:13px;
+    line-height:20px;
+}
+
+#healthOuter{
+    width:150px;
+    height:10px;
+    background:#222;
+    border-radius:20px;
+    overflow:hidden;
+    margin-top:5px;
+}
+
+#health{
+    width:100%;
+    height:100%;
+    background:linear-gradient(90deg,#ff204e,#ff8b00);
+}
+
+#joystick{
+    position:fixed;
+    width:145px;
+    height:145px;
+    left:25px;
+    bottom:25px;
+    border-radius:50%;
+    background:rgba(255,255,255,.08);
+    border:2px solid rgba(255,255,255,.18);
+    z-index:10;
+    touch-action:none;
+}
+
+#stick{
+    position:absolute;
+    width:65px;
+    height:65px;
+    left:38px;
+    top:38px;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#7dfcff,#2877ff);
+    box-shadow:0 0 25px #2877ff;
+}
+
+#attack{
+    position:fixed;
+    right:30px;
+    bottom:45px;
+    width:105px;
+    height:105px;
+    border-radius:50%;
+    border:3px solid rgba(255,255,255,.3);
+    background:radial-gradient(circle,#ff7a18,#db102f);
+    color:white;
+    font-size:18px;
+    font-weight:900;
+    box-shadow:0 0 30px rgba(255,50,30,.55);
+    z-index:10;
+    touch-action:none;
+}
+
+#attack:active{
+    transform:scale(.92);
+}
+
+#message{
+    position:fixed;
+    left:50%;
+    top:50%;
+    transform:translate(-50%,-50%);
+    color:white;
+    text-align:center;
+    display:none;
+    z-index:20;
+}
+
+#message h1{
+    font-size:52px;
+    text-shadow:0 0 25px #00eaff;
+}
+
+#restart{
+    margin-top:20px;
+    padding:14px 30px;
+    border:0;
+    border-radius:12px;
+    background:#18c8ff;
+    color:#001018;
+    font-weight:bold;
+    font-size:17px;
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="game"></canvas>
+
+<div id="ui">
+
+    <div class="panel">
+        <div class="title">🐉 DRAGON RUSH</div>
+        <div class="stats">
+            SCORE: <span id="score">0</span><br>
+            LEVEL: <span id="level">1</span><br>
+            SIZE: <span id="size">1.0</span>x
+        </div>
+    </div>
+
+    <div class="panel">
+        HP
+        <div id="healthOuter">
+            <div id="health"></div>
+        </div>
+    </div>
+
+</div>
+
+<div id="joystick">
+    <div id="stick"></div>
+</div>
+
+<button id="attack">⚡ ATTACK</button>
+
+<div id="message">
+    <h1 id="endTitle">GAME OVER</h1>
+    <p id="endText">The dragon has fallen.</p>
+    <button id="restart">PLAY AGAIN</button>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let W,H;
+function resize(){
+    W=canvas.width=innerWidth*devicePixelRatio;
+    H=canvas.height=innerHeight*devicePixelRatio;
+
+    canvas.style.width=innerWidth+"px";
+    canvas.style.height=innerHeight+"px";
+
+    ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+}
+
+resize();
+addEventListener("resize",resize);
+
+/* =========================
+   GAME WORLD
+========================= */
+
+const world={
+    width:4200,
+    height:4200
+};
+
+let camera={
+    x:0,
+    y:0
+};
+
+let score=0;
+let level=1;
+let gameOver=false;
+
+const keys={};
+
+addEventListener("keydown",e=>{
+    keys[e.key.toLowerCase()]=true;
+
+    if(e.key===" "){
+        attack();
+    }
+});
+
+addEventListener("keyup",e=>{
+    keys[e.key.toLowerCase()]=false;
+});
+
+/* =========================
+   PLAYER
+========================= */
+
+let player;
+
+function createPlayer(){
+    return{
+        x:world.width/2,
+        y:world.height/2,
+        vx:0,
+        vy:0,
+        radius:30,
+        scale:1,
+        hp:100,
+        maxHp:100,
+        speed:4,
+        attackCooldown:0,
+        invincible:0,
+        angle:0
+    };
+}
+
+player=createPlayer();
+
+/* =========================
+   JOYSTICK
+========================= */
+
+const joystick=document.getElementById("joystick");
+const stick=document.getElementById("stick");
+
+let joy={
+    x:0,
+    y:0,
+    active:false
+};
+
+function joystickMove(clientX,clientY){
+
+    const rect=joystick.getBoundingClientRect();
+
+    let dx=clientX-(rect.left+rect.width/2);
+    let dy=clientY-(rect.top+rect.height/2);
+
+    const max=45;
+    const dist=Math.hypot(dx,dy);
+
+    if(dist>max){
+        dx=dx/dist*max;
+        dy=dy/dist*max;
+    }
+
+    stick.style.left=(38+dx)+"px";
+    stick.style.top=(38+dy)+"px";
+
+    joy.x=dx/max;
+    joy.y=dy/max;
+}
+
+function joystickReset(){
+
+    joy.x=0;
+    joy.y=0;
+
+    stick.style.left="38px";
+    stick.style.top="38px";
+}
+
+joystick.addEventListener("pointerdown",e=>{
+    joy.active=true;
+    joystick.setPointerCapture(e.pointerId);
+    joystickMove(e.clientX,e.clientY);
+});
+
+joystick.addEventListener("pointermove",e=>{
+    if(joy.active)
+        joystickMove(e.clientX,e.clientY);
+});
+
+joystick.addEventListener("pointerup",()=>{
+    joy.active=false;
+    joystickReset();
+});
+
+joystick.addEventListener("pointercancel",()=>{
+    joy.active=false;
+    joystickReset();
+});
+
+/* =========================
+   ATTACK
+========================= */
+
+document.getElementById("attack").addEventListener("pointerdown",()=>{
+    attack();
+});
+
+function attack(){
+
+    if(gameOver || player.attackCooldown>0)
+        return;
+
+    player.attackCooldown=35;
+
+    particles.push({
+        type:"shock",
+        x:player.x,
+        y:player.y,
+        life:18,
+        maxLife:18,
+        radius:50
+    });
+
+    enemies.forEach(enemy=>{
+
+        const dx=enemy.x-player.x;
+        const dy=enemy.y-player.y;
+        const d=Math.hypot(dx,dy);
+
+        if(d < 130*player.scale){
+
+            enemy.hp-=30;
+
+            enemy.vx+=dx/d*12;
+            enemy.vy+=dy/d*12;
+
+            for(let i=0;i<12;i++){
+                particles.push({
+                    type:"spark",
+                    x:enemy.x,
+                    y:enemy.y,
+                    vx:(Math.random()-.5)*8,
+                    vy:(Math.random()-.5)*8,
+                    life:25,
+                    maxLife:25
+                });
+            }
+        }
+    });
+}
+
+/* =========================
+   COLOUR POINTS
+========================= */
+
+const colors=[
+    "#00eaff",
+    "#ff2bd6",
+    "#ffe600",
+    "#53ff65",
+    "#ff7417",
+    "#9d5cff"
+];
+
+let points=[];
+
+function spawnPoint(){
+
+    points.push({
+        x:100+Math.random()*(world.width-200),
+        y:100+Math.random()*(world.height-200),
+        color:colors[Math.floor(Math.random()*colors.length)],
+        radius:10+Math.random()*6,
+        pulse:Math.random()*Math.PI*2
+    });
+}
+
+for(let i=0;i<100;i++)
+    spawnPoint();
+
+/* =========================
+   ENEMIES
+========================= */
+
+let enemies=[];
+
+function spawnEnemy(){
+
+    let a=Math.random()*Math.PI*2;
+    let d=600+Math.random()*1000;
+
+    let x=player.x+Math.cos(a)*d;
+    let y=player.y+Math.sin(a)*d;
+
+    x=Math.max(100,Math.min(world.width-100,x));
+    y=Math.max(100,Math.min(world.height-100,y));
+
+    enemies.push({
+        x,
+        y,
+        vx:0,
+        vy:0,
+        radius:28+Math.random()*10,
+        hp:80,
+        maxHp:80,
+        speed:1.5+Math.random()*.8,
+        angle:0,
+        color:colors[Math.floor(Math.random()*colors.length)],
+        hitCooldown:0
+    });
+}
+
+for(let i=0;i<7;i++)
+    spawnEnemy();
+
+/* =========================
+   PARTICLES
+========================= */
+
+let particles=[];
+
+function burst(x,y,color,count=15){
+
+    for(let i=0;i<count;i++){
+
+        const a=Math.random()*Math.PI*2;
+        const s=1+Math.random()*6;
+
+        particles.push({
+            type:"spark",
+            x,
+            y,
+            vx:Math.cos(a)*s,
+            vy:Math.sin(a)*s,
+            life:35+Math.random()*20,
+            maxLife:55,
+            color
+        });
+    }
+}
+
+/* =========================
+   UPDATE PLAYER
+========================= */
+
+function updatePlayer(){
+
+    let dx=joy.x;
+    let dy=joy.y;
+
+    if(keys["w"] || keys["arrowup"])
+        dy=-1;
+
+    if(keys["s"] || keys["arrowdown"])
+        dy=1;
+
+    if(keys["a"] || keys["arrowleft"])
+        dx=-1;
+
+    if(keys["d"] || keys["arrowright"])
+        dx=1;
+
+    if(dx || dy){
+
+        const length=Math.hypot(dx,dy);
+
+        dx/=length;
+        dy/=length;
+
+        player.vx+=dx*0.65;
+        player.vy+=dy*0.65;
+
+        player.angle=Math.atan2(dy,dx);
+    }
+
+    player.vx*=.88;
+    player.vy*=.88;
+
+    const maxSpeed=player.speed;
+
+    const speed=Math.hypot(player.vx,player.vy);
+
+    if(speed>maxSpeed){
+
+        player.vx=player.vx/speed*maxSpeed;
+        player.vy=player.vy/speed*maxSpeed;
+    }
+
+    player.x+=player.vx;
+    player.y+=player.vy;
+
+    player.x=Math.max(60,Math.min(world.width-60,player.x));
+    player.y=Math.max(60,Math.min(world.height-60,player.y));
+
+    if(player.attackCooldown>0)
+        player.attackCooldown--;
+
+    if(player.invincible>0)
+        player.invincible--;
+}
+
+/* =========================
+   UPDATE ENEMIES
+========================= */
+
+function updateEnemies(){
+
+    enemies.forEach(enemy=>{
+
+        let dx=player.x-enemy.x;
+        let dy=player.y-enemy.y;
+        let dist=Math.hypot(dx,dy);
+
+        if(dist>1){
+
+            dx/=dist;
+            dy/=dist;
+
+            enemy.vx+=dx*.18;
+            enemy.vy+=dy*.18;
+
+            const s=Math.hypot(enemy.vx,enemy.vy);
+
+            if(s>enemy.speed){
+
+                enemy.vx=enemy.vx/s*enemy.speed;
+                enemy.vy=enemy.vy/s*enemy.speed;
+            }
+        }
+
+        enemy.vx*=.94;
+        enemy.vy*=.94;
+
+        enemy.x+=enemy.vx;
+        enemy.y+=enemy.vy;
+
+        enemy.angle=Math.atan2(enemy.vy,enemy.vx);
+
+        if(enemy.hitCooldown>0)
+            enemy.hitCooldown--;
+
+        if(dist < player.radius*player.scale+enemy.radius){
+
+            if(enemy.hitCooldown<=0 && player.invincible<=0){
+
+                player.hp-=8;
+                player.invincible=30;
+                enemy.hitCooldown=40;
+
+                burst(player.x,player.y,"#ff304f",15);
+
+                if(player.hp<=0)
+                    endGame();
+            }
+        }
+    });
+
+    /* remove dead enemies */
+
+    for(let i=enemies.length-1;i>=0;i--){
+
+        if(enemies[i].hp<=0){
+
+            const e=enemies[i];
+
+            score+=100;
+
+            burst(e.x,e.y,e.color,35);
+
+            enemies.splice(i,1);
+
+            spawnEnemy();
+        }
+    }
+}
+
+/* =========================
+   COLLECT POINTS
+========================= */
+
+function collectPoints(){
+
+    for(let i=points.length-1;i>=0;i--){
+
+        const p=points[i];
+
+        const dx=p.x-player.x;
+        const dy=p.y-player.y;
+        const d=Math.hypot(dx,dy);
+
+        if(d < player.radius*player.scale+p.radius){
+
+            score+=10;
+
+            player.scale+=.025;
+
+            player.radius+=.15;
+
+            level=1+Math.floor(score/250);
+
+            player.maxHp=100+level*5;
+
+            player.hp=Math.min(player.maxHp,player.hp+3);
+
+            burst(p.x,p.y,p.color,18);
+
+            points.splice(i,1);
+
+            spawnPoint();
+        }
+    }
+}
+
+/* =========================
+   PARTICLE UPDATE
+========================= */
+
+function updateParticles(){
+
+    for(let i=particles.length-1;i>=0;i--){
+
+        const p=particles[i];
+
+        p.life--;
+
+        if(p.type==="spark"){
+
+            p.x+=p.vx;
+            p.y+=p.vy;
+
+            p.vx*=.96;
+            p.vy*=.96;
+        }
+
+        if(p.type==="shock"){
+            p.radius+=7;
+        }
+
+        if(p.life<=0)
+            particles.splice(i,1);
+    }
+}
+
+/* =========================
+   CAMERA
+========================= */
+
+function updateCamera(){
+
+    camera.x+=(player.x-innerWidth/2-camera.x)*.08;
+    camera.y+=(player.y-innerHeight/2-camera.y)*.08;
+
+    camera.x=Math.max(0,Math.min(world.width-innerWidth,camera.x));
+    camera.y=Math.max(0,Math.min(world.height-innerHeight,camera.y));
+}
+
+/* =========================
+   DRAW BACKGROUND
+========================= */
+
+function drawBackground(){
+
+    const g=ctx.createLinearGradient(0,0,innerWidth,innerHeight);
+
+    g.addColorStop(0,"#07152c");
+    g.addColorStop(.5,"#081f25");
+    g.addColorStop(1,"#130725");
+
+    ctx.fillStyle=g;
+    ctx.fillRect(0,0,innerWidth,innerHeight);
+
+    ctx.save();
+
+    ctx.translate(-camera.x,-camera.y);
+
+    /* grid */
+
+    ctx.strokeStyle="rgba(100,220,255,.06)";
+    ctx.lineWidth=1;
+
+    const grid=100;
+
+    for(let x=0;x<world.width;x+=grid){
+
+        ctx.beginPath();
+        ctx.moveTo(x,0);
+        ctx.lineTo(x,world.height);
+        ctx.stroke();
+    }
+
+    for(let y=0;y<world.height;y+=grid){
+
+        ctx.beginPath();
+        ctx.moveTo(0,y);
+        ctx.lineTo(world.width,y);
+        ctx.stroke();
+    }
+
+    /* arena border */
+
+    ctx.strokeStyle="rgba(0,220,255,.25)";
+    ctx.lineWidth=8;
+
+    ctx.strokeRect(20,20,world.width-40,world.height-40);
+
+    ctx.restore();
+}
+
+/* =========================
+   DRAW POINTS
+========================= */
+
+function drawPoints(){
+
+    ctx.save();
+    ctx.translate(-camera.x,-camera.y);
+
+    points.forEach(p=>{
+
+        p.pulse+=.04;
+
+        const r=p.radius+Math.sin(p.pulse)*3;
+
+        ctx.shadowBlur=25;
+        ctx.shadowColor=p.color;
+
+        ctx.fillStyle=p.color;
+
+        ctx.beginPath();
+        ctx.arc(p.x,p.y,r,0,Math.PI*2);
+        ctx.fill();
+
+        ctx.shadowBlur=0;
+
+        ctx.fillStyle="white";
+
+        ctx.beginPath();
+        ctx.arc(p.x-r*.3,p.y-r*.3,r*.25,0,Math.PI*2);
+        ctx.fill();
+    });
+
+    ctx.restore();
+}
+
+/* =========================
+   DRAGON DRAW
+========================= */
+
+function drawDragon(d,isPlayer=false){
+
+    const scale=isPlayer?player.scale:1;
+
+    ctx.save();
+
+    ctx.translate(d.x-camera.x,d.y-camera.y);
+    ctx.rotate(d.angle||0);
+    ctx.scale(scale,scale);
+
+    if(isPlayer && player.invincible%6<3)
+        ctx.globalAlpha=.55;
+
+    /* glow */
+
+    ctx.shadowBlur=isPlayer?30:18;
+    ctx.shadowColor=isPlayer?"#00d9ff":d.color;
+
+    /* tail */
+
+    ctx.fillStyle=isPlayer?"#006cff":d.color;
+
+    ctx.beginPath();
+    ctx.moveTo(-20,-5);
+    ctx.quadraticCurveTo(-55,-25,-72,5);
+    ctx.quadraticCurveTo(-52,12,-22,10);
+    ctx.closePath();
+    ctx.fill();
+
+    /* wings */
+
+    ctx.fillStyle=isPlayer?"#18d7ff":d.color;
+
+    ctx.beginPath();
+    ctx.moveTo(-5,-12);
+    ctx.lineTo(-30,-55);
+    ctx.lineTo(5,-35);
+    ctx.lineTo(15,-10);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(-5,12);
+    ctx.lineTo(-30,55);
+    ctx.lineTo(5,35);
+    ctx.lineTo(15,10);
+    ctx.closePath();
+    ctx.fill();
+
+    /* body */
+
+    const bodyGrad=ctx.createRadialGradient(
+        10,-8,4,
+        0,0,35
+    );
+
+    bodyGrad.addColorStop(
+        0,
+        isPlayer?"#9fffff":"#ffb0d0"
+    );
+
+    bodyGrad.addColorStop(
+        .4,
+        isPlayer?"#087cff":d.color
+    );
+
+    bodyGrad.addColorStop(
+        1,
+        "#080b22"
+    );
+
+    ctx.fillStyle=bodyGrad;
+
+    ctx.beginPath();
+    ctx.ellipse(0,0,34,22,0,0,Math.PI*2);
+    ctx.fill();
+
+    /* neck */
+
+    ctx.fillStyle=isPlayer?"#087cff":d.color;
+
+    ctx.beginPath();
+    ctx.ellipse(25,0,23,18,0,0,Math.PI*2);
+    ctx.fill();
+
+    /* head */
+
+    ctx.beginPath();
+    ctx.arc(43,0,20,0,Math.PI*2);
+    ctx.fill();
+
+    /* horns */
+
+    ctx.fillStyle="#eeeeff";
+
+    ctx.beginPath();
+    ctx.moveTo(42,-13);
+    ctx.lineTo(48,-30);
+    ctx.lineTo(53,-12);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(30,-13);
+    ctx.lineTo(26,-28);
+    ctx.lineTo(39,-12);
+    ctx.fill();
+
+    /* eyes */
+
+    ctx.shadowBlur=10;
+    ctx.shadowColor="#ffe600";
+
+    ctx.fillStyle="#ffe600";
+
+    ctx.beginPath();
+    ctx.arc(50,-6,4,0,Math.PI*2);
+    ctx.fill();
+
+    /* pupil */
+
+    ctx.fillStyle="#111";
+
+    ctx.beginPath();
+    ctx.arc(51,-6,1.5,0,Math.PI*2);
+    ctx.fill();
+
+    /* fire */
+
+    ctx.shadowBlur=20;
+    ctx.shadowColor="#ff4500";
+
+    const fire=ctx.createLinearGradient(55,0,95,0);
+
+    fire.addColorStop(0,"#fff200");
+    fire.addColorStop(.4,"#ff8c00");
+    fire.addColorStop(1,"#ff1735");
+
+    ctx.fillStyle=fire;
+
+    ctx.beginPath();
+    ctx.moveTo(58,5);
+    ctx.lineTo(90,0);
+    ctx.lineTo(62,-6);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+}
+
+/* =========================
+   DRAW ENEMIES
+========================= */
+
+function drawEnemies(){
+
+    enemies.forEach(enemy=>{
+
+        drawDragon(enemy,false);
+
+        /* HP */
+
+        const width=65;
+
+        ctx.fillStyle="rgba(0,0,0,.6)";
+        ctx.fillRect(
+            enemy.x-camera.x-width/2,
+            enemy.y-camera.y-enemy.radius-18,
+            width,
+            6
+        );
+
+        ctx.fillStyle="#ff3150";
+
+        ctx.fillRect(
+            enemy.x-camera.x-width/2,
+            enemy.y-camera.y-enemy.radius-18,
+            width*(enemy.hp/enemy.maxHp),
+            6
+        );
+    });
+}
+
+/* =========================
+   PARTICLE DRAW
+========================= */
+
+function drawParticles(){
+
+    ctx.save();
+    ctx.translate(-camera.x,-camera.y);
+
+    particles.forEach(p=>{
+
+        const alpha=p.life/p.maxLife;
+
+        ctx.globalAlpha=alpha;
+
+        if(p.type==="spark"){
+
+            ctx.fillStyle=p.color||"#fff";
+
+            ctx.beginPath();
+            ctx.arc(p.x,p.y,3+alpha*3,0,Math.PI*2);
+            ctx.fill();
+        }
+
+        if(p.type==="shock"){
+
+            ctx.strokeStyle="#7dfcff";
+            ctx.lineWidth=5;
+
+            ctx.beginPath();
+            ctx.arc(
+                p.x,
+                p.y,
+                p.radius,
+                0,
+                Math.PI*2
+            );
+
+            ctx.stroke();
+        }
+    });
+
+    ctx.restore();
+
+    ctx.globalAlpha=1;
+}
+
+/* =========================
+   MAIN DRAW
+========================= */
+
+function draw(){
+
+    ctx.clearRect(0,0,innerWidth,innerHeight);
+
+    drawBackground();
+    drawPoints();
+    drawEnemies();
+    drawDragon(player,true);
+    drawParticles();
+
+    /* minimap */
+
+    drawMiniMap();
+}
+
+/* =========================
+   MINI MAP
+========================= */
+
+function drawMiniMap(){
+
+    const size=110;
+    const x=innerWidth-size-18;
+    const y=innerHeight-size-18;
+
+    ctx.fillStyle="rgba(0,0,0,.55)";
+    ctx.fillRect(x,y,size,size);
+
+    ctx.strokeStyle="rgba(255,255,255,.25)";
+    ctx.strokeRect(x,y,size,size);
+
+    const px=x+(player.x/world.width)*size;
+    const py=y+(player.y/world.height)*size;
+
+    ctx.fillStyle="#00eaff";
+
+    ctx.beginPath();
+    ctx.arc(px,py,4,0,Math.PI*2);
+    ctx.fill();
+
+    enemies.forEach(e=>{
+
+        const ex=x+(e.x/world.width)*size;
+        const ey=y+(e.y/world.height)*size;
+
+        ctx.fillStyle="#ff304f";
+
+        ctx.beginPath();
+        ctx.arc(ex,ey,2.5,0,Math.PI*2);
+        ctx.fill();
+    });
+}
+
+/* =========================
+   UI
+========================= */
+
+function updateUI(){
+
+    document.getElementById("score").textContent=score;
+    document.getElementById("level").textContent=level;
+    document.getElementById("size").textContent=
+        player.scale.toFixed(1);
+
+    const hp=Math.max(
+        0,
+        Math.min(100,(player.hp/player.maxHp)*100)
+    );
+
+    document.getElementById("health").style.width=hp+"%";
+}
+
+/* =========================
+   GAME OVER
+========================= */
+
+function endGame(){
+
+    gameOver=true;
+
+    document.getElementById("message").style.display="block";
+    document.getElementById("endTitle").textContent="DRAGON FALLEN";
+    document.getElementById("endText").textContent=
+        "Final Score: "+score;
+}
+
+document.getElementById("restart").onclick=()=>{
+
+    score=0;
+    level=1;
+    gameOver=false;
+
+    player=createPlayer();
+
+    points=[];
+    enemies=[];
+    particles=[];
+
+    for(let i=0;i<100;i++)
+        spawnPoint();
+
+    for(let i=0;i<7;i++)
+        spawnEnemy();
+
+    document.getElementById("message").style.display="none";
+};
+
+/* =========================
+   GAME LOOP
+========================= */
+
+function gameLoop(){
+
+    if(!gameOver){
+
+        updatePlayer();
+        updateEnemies();
+        collectPoints();
+        updateParticles();
+        updateCamera();
+        updateUI();
+    }
+
+    draw();
+
+    requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+
+</body>
+</html>
