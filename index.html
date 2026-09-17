@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jump Master</title>
+
+<style>
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+}
+
+body {
+    background: #111;
+    font-family: Arial, sans-serif;
+    overflow: hidden;
+}
+
+#game {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: linear-gradient(#72c7ff, #dff6ff);
+}
+
+/* Sky */
+#sky {
+    position: absolute;
+    inset: 0;
+}
+
+/* Sun */
+.sun {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    background: #ffd93d;
+    border-radius: 50%;
+    top: 50px;
+    right: 70px;
+}
+
+/* Ground */
+#ground {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 100px;
+    background: #4caf50;
+    border-top: 8px solid #2e7d32;
+}
+
+/* Player */
+#player {
+    position: absolute;
+    width: 42px;
+    height: 55px;
+    background: #ff4757;
+    border-radius: 12px;
+    z-index: 10;
+    box-shadow: 0 5px 10px #555;
+}
+
+#player::before {
+    content: "";
+    position: absolute;
+    width: 28px;
+    height: 28px;
+    background: #ffd6a5;
+    border-radius: 50%;
+    top: -25px;
+    left: 7px;
+}
+
+/* Platforms / walls */
+.wall {
+    position: absolute;
+    bottom: 100px;
+    background: #795548;
+    border: 4px solid #4e342e;
+    border-radius: 5px;
+}
+
+/* Water */
+.water {
+    position: absolute;
+    bottom: 100px;
+    height: 55px;
+    background: #168cff;
+    border-top: 5px solid #0066cc;
+    opacity: .9;
+}
+
+.water::after {
+    content: "≈ ≈ ≈ ≈ ≈";
+    position: absolute;
+    top: 5px;
+    left: 10px;
+    color: white;
+    font-size: 20px;
+}
+
+/* UI */
+#ui {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    z-index: 100;
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+    text-shadow: 2px 2px 4px #000;
+}
+
+#title {
+    font-size: 28px;
+    margin-bottom: 8px;
+}
+
+/* Start screen */
+#startScreen,
+#gameOver {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,.72);
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    text-align: center;
+}
+
+#gameOver {
+    display: none;
+}
+
+h1 {
+    font-size: 48px;
+    margin-bottom: 15px;
+}
+
+button {
+    margin-top: 20px;
+    padding: 15px 35px;
+    border: none;
+    border-radius: 12px;
+    background: #ff4757;
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button:active {
+    transform: scale(.95);
+}
+
+/* Mobile controls */
+#controls {
+    position: absolute;
+    bottom: 20px;
+    left: 0;
+    width: 100%;
+    z-index: 150;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 25px;
+    pointer-events: none;
+}
+
+.controlGroup {
+    display: flex;
+    gap: 15px;
+    pointer-events: auto;
+}
+
+.control {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    border: 2px solid white;
+    background: rgba(0,0,0,.45);
+    color: white;
+    font-size: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@media (min-width: 800px) {
+    #controls {
+        display: none;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div id="game">
+
+    <div id="sky">
+        <div class="sun"></div>
+    </div>
+
+    <div id="ground"></div>
+
+    <div id="player"></div>
+
+    <div id="ui">
+        <div id="title">🏆 JUMP MASTER</div>
+        Score: <span id="score">0</span><br>
+        Lives: <span id="lives">❤️❤️❤️</span>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="startScreen">
+        <h1>JUMP MASTER</h1>
+        <p>Jump over walls and cross the water!</p>
+        <p>⬅️ ➡️ Move &nbsp;&nbsp; ⬆️ Jump</p>
+        <button onclick="startGame()">START GAME</button>
+    </div>
+
+    <!-- Game Over -->
+    <div id="gameOver">
+        <h1>GAME OVER</h1>
+        <p>Your Score: <span id="finalScore">0</span></p>
+        <button onclick="restartGame()">PLAY AGAIN</button>
+    </div>
+
+    <!-- Mobile controls -->
+    <div id="controls">
+
+        <div class="controlGroup">
+            <div class="control" id="leftBtn">⬅️</div>
+            <div class="control" id="rightBtn">➡️</div>
+        </div>
+
+        <div class="controlGroup">
+            <div class="control" id="jumpBtn">⬆️</div>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+const game = document.getElementById("game");
+const player = document.getElementById("player");
+
+const scoreText = document.getElementById("score");
+const livesText = document.getElementById("lives");
+
+let gameRunning = false;
+
+let playerX = 100;
+let playerY = 0;
+
+let velocityY = 0;
+
+let speed = 5;
+let jumpPower = 14;
+
+let gravity = 0.7;
+
+let score = 0;
+let lives = 3;
+
+let keys = {
+    left: false,
+    right: false
+};
+
+let objects = [];
+
+
+// -------------------------
+// PLAYER
+// -------------------------
+
+function updatePlayer() {
+
+    if (!gameRunning) return;
+
+    let currentSpeed = speed;
+
+    // Check water
+    if (isInWater()) {
+        currentSpeed = 2;
+    }
+
+    if (keys.left) {
+        playerX -= currentSpeed;
+    }
+
+    if (keys.right) {
+        playerX += currentSpeed;
+    }
+
+    // Gravity
+    velocityY -= gravity;
+    playerY += velocityY;
+
+    // Ground
+    if (playerY <= 0) {
+        playerY = 0;
+        velocityY = 0;
+    }
+
+    // Screen boundaries
+    if (playerX < 0) {
+        playerX = 0;
+    }
+
+    if (playerX > window.innerWidth - 45) {
+        playerX = window.innerWidth - 45;
+    }
+
+    player.style.left = playerX + "px";
+    player.style.bottom = (100 + playerY) + "px";
+
+    checkCollisions();
+}
+
+
+// -------------------------
+// JUMP
+// -------------------------
+
+function jump() {
+
+    if (!gameRunning) return;
+
+    // Jump only when on ground
+    if (playerY <= 1) {
+        velocityY = jumpPower;
+    }
+}
+
+
+// -------------------------
+// CREATE OBJECT
+// -------------------------
+
+function createWall() {
+
+    const wall = document.createElement("div");
+
+    wall.className = "wall";
+
+    let width = 45 + Math.random() * 35;
+    let height = 50 + Math.random() * 90;
+
+    wall.style.width = width + "px";
+    wall.style.height = height + "px";
+
+    wall.style.left = window.innerWidth + "px";
+
+    game.appendChild(wall);
+
+    objects.push({
+        element: wall,
+        type: "wall",
+        x: window.innerWidth,
+        width: width,
+        height: height
+    });
+}
+
+
+function createWater() {
+
+    const water = document.createElement("div");
+
+    water.className = "water";
+
+    let width = 150 + Math.random() * 150;
+
+    water.style.width = width + "px";
+    water.style.left = window.innerWidth + "px";
+
+    game.appendChild(water);
+
+    objects.push({
+        element: water,
+        type: "water",
+        x: window.innerWidth,
+        width: width,
+        height: 55
+    });
+}
+
+
+// -------------------------
+// MOVE OBJECTS
+// -------------------------
+
+function moveObjects() {
+
+    if (!gameRunning) return;
+
+    for (let i = objects.length - 1; i >= 0; i--) {
+
+        let obj = objects[i];
+
+        obj.x -= speed;
+
+        obj.element.style.left = obj.x + "px";
+
+        // Remove old objects
+        if (obj.x + obj.width < 0) {
+
+            obj.element.remove();
+
+            objects.splice(i, 1);
+
+            score++;
+
+            scoreText.textContent = score;
+        }
+    }
+}
+
+
+// -------------------------
+// COLLISION
+// -------------------------
+
+function checkCollisions() {
+
+    const playerLeft = playerX;
+    const playerRight = playerX + 42;
+
+    const playerBottom = playerY;
+    const playerTop = playerY + 55;
+
+    for (let obj of objects) {
+
+        const objLeft = obj.x;
+        const objRight = obj.x + obj.width;
+
+        // Horizontal collision
+        if (playerRight > objLeft &&
+            playerLeft < objRight) {
+
+            // Wall collision
+            if (obj.type === "wall") {
+
+                const wallTop = obj.height;
+
+                if (playerBottom < wallTop &&
+                    playerTop > 0) {
+
+                    loseLife();
+                    return;
+                }
+            }
+        }
+    }
+}
+
+
+// -------------------------
+// WATER CHECK
+// -------------------------
+
+function isInWater() {
+
+    for (let obj of objects) {
+
+        if (obj.type !== "water") continue;
+
+        const left = obj.x;
+        const right = obj.x + obj.width;
+
+        if (playerX + 42 > left &&
+            playerX < right &&
+            playerY < 60) {
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+// -------------------------
+// LIFE
+// -------------------------
+
+function loseLife() {
+
+    lives--;
+
+    updateLives();
+
+    // Push player back
+    playerX -= 100;
+
+    if (lives <= 0) {
+        endGame();
+    }
+}
+
+
+function updateLives() {
+
+    let hearts = "";
+
+    for (let i = 0; i < lives; i++) {
+        hearts += "❤️";
+    }
+
+    livesText.textContent = hearts;
+}
+
+
+// -------------------------
+// RANDOM OBJECT SPAWN
+// -------------------------
+
+let spawnTimer = 0;
+
+function spawnObjects() {
+
+    if (!gameRunning) return;
+
+    spawnTimer++;
+
+    if (spawnTimer > 100) {
+
+        spawnTimer = 0;
+
+        let random = Math.random();
+
+        if (random < 0.65) {
+            createWall();
+        } else {
+            createWater();
+        }
+    }
+}
+
+
+// -------------------------
+// DIFFICULTY
+// -------------------------
+
+function increaseDifficulty() {
+
+    if (score > 10) {
+        speed = 6;
+    }
+
+    if (score > 25) {
+        speed = 7;
+    }
+
+    if (score > 50) {
+        speed = 8;
+    }
+}
+
+
+// -------------------------
+// GAME LOOP
+// -------------------------
+
+function gameLoop() {
+
+    updatePlayer();
+
+    moveObjects();
+
+    spawnObjects();
+
+    increaseDifficulty();
+
+    requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+
+
+// -------------------------
+// START GAME
+// -------------------------
+
+function startGame() {
+
+    document.getElementById("startScreen").style.display = "none";
+
+    gameRunning = true;
+
+    playerX = 100;
+    playerY = 0;
+
+    score = 0;
+    lives = 3;
+
+    speed = 5;
+
+    scoreText.textContent = score;
+
+    updateLives();
+}
+
+
+// -------------------------
+// GAME OVER
+// -------------------------
+
+function endGame() {
+
+    gameRunning = false;
+
+    document.getElementById("finalScore").textContent = score;
+
+    document.getElementById("gameOver").style.display = "flex";
+}
+
+
+// -------------------------
+// RESTART
+// -------------------------
+
+function restartGame() {
+
+    objects.forEach(obj => obj.element.remove());
+
+    objects = [];
+
+    document.getElementById("gameOver").style.display = "none";
+
+    startGame();
+}
+
+
+// -------------------------
+// KEYBOARD CONTROLS
+// -------------------------
+
+document.addEventListener("keydown", function(e) {
+
+    if (e.key === "ArrowLeft" || e.key === "a") {
+        keys.left = true;
+    }
+
+    if (e.key === "ArrowRight" || e.key === "d") {
+        keys.right = true;
+    }
+
+    if (e.key === "ArrowUp" ||
+        e.key === " " ||
+        e.key === "w") {
+
+        jump();
+    }
+});
+
+
+document.addEventListener("keyup", function(e) {
+
+    if (e.key === "ArrowLeft" || e.key === "a") {
+        keys.left = false;
+    }
+
+    if (e.key === "ArrowRight" || e.key === "d") {
+        keys.right = false;
+    }
+});
+
+
+// -------------------------
+// MOBILE CONTROLS
+// -------------------------
+
+const leftBtn = document.getElementById("leftBtn");
+const rightBtn = document.getElementById("rightBtn");
+const jumpBtn = document.getElementById("jumpBtn");
+
+leftBtn.addEventListener("touchstart", function(e) {
+    e.preventDefault();
+    keys.left = true;
+});
+
+leftBtn.addEventListener("touchend", function(e) {
+    e.preventDefault();
+    keys.left = false;
+});
+
+
+rightBtn.addEventListener("touchstart", function(e) {
+    e.preventDefault();
+    keys.right = true;
+});
+
+rightBtn.addEventListener("touchend", function(e) {
+    e.preventDefault();
+    keys.right = false;
+});
+
+
+jumpBtn.addEventListener("touchstart", function(e) {
+    e.preventDefault();
+    jump();
+});
+
+
+// Also allow mouse controls
+
+leftBtn.addEventListener("mousedown", () => keys.left = true);
+leftBtn.addEventListener("mouseup", () => keys.left = false);
+
+rightBtn.addEventListener("mousedown", () => keys.right = true);
+rightBtn.addEventListener("mouseup", () => keys.right = false);
+
+jumpBtn.addEventListener("mousedown", jump);
+
+</script>
+
+</body>
+  </html>
+  
