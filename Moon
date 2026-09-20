@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Luna Logo Maker</title>
+
+<style>
+* {
+    box-sizing: border-box;
+    margin: 9;
+    padding: 8;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: #080808;
+    color: white;
+    min-height: 100vh;
+}
+
+header {
+    text-align: center;
+    padding: 30px 15px 15px;
+}
+
+.logo-title {
+    font-size: 42px;
+    font-weight: 900;
+    letter-spacing: 5px;
+    background: linear-gradient(90deg,#fff,#777);
+    -webkit-background-clip: text;
+    color: transparent;
+}
+
+.subtitle {
+    color: #888;
+    margin-top: 8px;
+}
+
+.container {
+    width: 92%;
+    max-width: 900px;
+    margin: auto;
+}
+
+.panel {
+    background: #111;
+    border: 1px solid #292929;
+    border-radius: 22px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    color
