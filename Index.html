@@ -1,0 +1,58 @@
+// npm i express cors express-rate-limit
+// PROVIDER_URL / PROVIDER_KEY come from the licensed RC/DL verification API you sign up with.
+// Run: PROVIDER_URL=... PROVIDER_KEY=... node server.js   (Node 18+)
+
+const express = require("express");
+const cors = require("cors");
+const rateLimit = require("express-rate-limit");
+
+const app = express();
+app.use(express.json());
+app.use(cors({ origin: process.env.ALLOWED_ORIGIN || "http://localhost:5500" }));
+app.use(rateLimit({ windowMs: 60_000, max: 20 }));        // protect your paid quota
+
+const PLATE_RE = /^([A-Z]{2}\d{1,2}[A-Z]{0,3}\d{4}|\d{2}BH\d{4}[A-Z]{1,2})$/;
+const maskName = n => (n || "").split(" ").map(w => w[0] + "*".repeat(Math.max(w.length - 1, 0))).join(" ");
+
+async function provider(path, payload) {
+  const r = await fetch(process.env.PROVIDER_URL + path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.PROVIDER_KEY}` },
+    body: JSON.stringify(payload),
+  });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.message || "Provider error");
+  return j.data || j;
+}
+
+app.post("/api/vehicle", async (req, res) => {
+  try {
+    const plate = String(req.body.plate || "").toUpperCase();
+    if (!PLATE_RE.test(plate)) return res.status(400).json({ error: "Invalid registration number" });
+    const d = await provider("/rc", { id_number: plate });
+    // ↓ Map YOUR provider's field names here; these keys are placeholders.
+    res.json({
+      registration_no: plate,
+      maker: d.maker_description, model: d.maker_model, vehicle_class: d.vehicle_category,
+      fuel: d.fuel_type, color: d.color, registration_date: d.registration_date, rto: d.rto_name,
+      rc_status: d.rc_status, owner_name: maskName(d.owner_name),
+      chassis_no: d.vehicle_chasi_number, engine_no: d.vehicle_engine_number,
+      insurance: { company: d.insurance_company, policy_no: d.insurance_policy_number, valid_upto: d.insurance_upto },
+      puc: { valid_upto: d.pucc_upto }, fitness_upto: d.fit_up_to, tax_upto: d.tax_upto,
+    });
+  } catch (e) { res.status(502).json({ error: e.message }); }
+});
+
+app.post("/api/dl", async (req, res) => {
+  try {
+    const { dl_no, dob } = req.body;
+    if (!dl_no || !dob) return res.status(400).json({ error: "DL number and DOB required" });
+    const d = await provider("/driving-license", { id_number: dl_no, dob });
+    res.json({
+      dl_no, holder: maskName(d.name), status: d.status, issued: d.doi,
+      valid_nt: d.doe, classes: d.vehicle_classes, rto: d.issuing_rto,
+    });
+  } catch (e) { res.status(502).json({ error: e.message }); }
+});
+
+app.listen(3000, () => console.log("API on :3000"));
